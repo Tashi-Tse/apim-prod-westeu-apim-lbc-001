@@ -1,0 +1,27 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "LBC Public API v1",
+        "description": "Publieke lbconderwijs API zonder authenticatie (v1).",
+        "version": "1.0"
+    },
+    "servers": [
+        {
+            "url": "https://apim-prod-westeu-apim-lbc-001.azure-api.net/public/v1"
+        }
+    ],
+    "paths": {
+        "/lesplaatsen": {
+            "get": {
+                "summary": "lesplaatsen",
+                "operationId": "lesplaatsen",
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        }
+    },
+    "components": {}
+}

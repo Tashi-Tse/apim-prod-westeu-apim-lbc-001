@@ -1,0 +1,148 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "LBC Internal API v1",
+        "description": "",
+        "version": "1.0"
+    },
+    "servers": [
+        {
+            "url": "https://apim-prod-westeu-apim-lbc-001.azure-api.net/internal/v1"
+        }
+    ],
+    "paths": {
+        "/deviceinfo/{deviceName}": {
+            "get": {
+                "summary": "deviceinfo",
+                "operationId": "deviceinfo",
+                "parameters": [
+                    {
+                        "name": "deviceName",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/personeel": {
+            "get": {
+                "summary": "personeel",
+                "operationId": "personeel",
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/testdevices": {
+            "get": {
+                "summary": "testdevices - GET",
+                "operationId": "testdevices",
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "summary": "testdevices - POST",
+                "operationId": "testdevices-post",
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/testdevices/{id}": {
+            "get": {
+                "summary": "testdevice by id - GET",
+                "operationId": "testdevice-by-id",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "summary": "testdevice by id - PUT",
+                "operationId": "testdevices-by-id-put",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "summary": "testdevice by id - DELETE",
+                "operationId": "testdevice-by-id-delete",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/deliberaties/{id}": {
+            "get": {
+                "summary": "deliberaties by id",
+                "operationId": "deliberaties-by-id",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": ""
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": ""
+                    }
+                }
+            }
+        }
+    },
+    "components": {}
+}

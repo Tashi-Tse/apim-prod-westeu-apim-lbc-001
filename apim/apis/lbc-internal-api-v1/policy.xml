@@ -1,0 +1,43 @@
+﻿<!--
+    - Policies are applied in the order they appear.
+    - Position <base/> inside a section to inherit policies from the outer scope.
+    - Comments within policies are not preserved.
+-->
+<!-- Add policies as children to the <inbound>, <outbound>, <backend>, and <on-error> elements -->
+<policies>
+	<inbound>
+		<base />
+		<!-- ALLEEN JWT validatie (CORS wordt al door "All APIs" afgehandeld) -->
+		<choose>
+			<when condition="@(context.Request.Method != &quot;OPTIONS&quot;)">
+				<validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized" output-token-variable-name="jwt">
+					<openid-config url="https://login.microsoftonline.com/fefe3ca6-d43a-468b-9ac9-ea16dbca6aba/v2.0/.well-known/openid-configuration" />
+					<audiences>
+						<!-- 1. Bestaande Backend Audience (voor browser/v2 tokens) -->
+						<audience>ea382994-d84e-43e6-9ba4-7cf758b2266d</audience>
+						<audience>api://ea382994-d84e-43e6-9ba4-7cf758b2266d</audience>
+						<!-- 2. NIEUW: Frontend Audience (voor tokens via Teams SSO) -->
+						<audience>api://salmon-sea-0ccee1f03.2.azurestaticapps.net/095eaacd-c638-4ff5-8d79-f27ba9cc8689</audience>
+					</audiences>
+					<issuers>
+						<!-- v2 Issuer (Browser) -->
+						<issuer>https://login.microsoftonline.com/fefe3ca6-d43a-468b-9ac9-ea16dbca6aba/v2.0</issuer>
+						<!-- v1 Issuer (Teams) -->
+						<issuer>https://sts.windows.net/fefe3ca6-d43a-468b-9ac9-ea16dbca6aba/</issuer>
+					</issuers>
+				</validate-jwt>
+			</when>
+		</choose>
+	</inbound>
+	<backend>
+		<base />
+	</backend>
+	<!-- Outbound NIET nodig voor CORS als "All APIs" het al doet -->
+	<outbound>
+		<base />
+	</outbound>
+	<!-- On-error NIET nodig voor CORS als "All APIs" het al doet -->
+	<on-error>
+		<base />
+	</on-error>
+</policies>
