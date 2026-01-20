@@ -14,9 +14,10 @@
          Intern: /api/deviceinfo/{deviceName} -->
 		<rewrite-uri template="/api/deviceinfo/{deviceName}" />
 		<!-- Function key -->
-		<set-query-parameter name="code" exists-action="override">
-			<value>{{GROUPID}}</value>
-		</set-query-parameter>
+<set-query-parameter name="code" exists-action="override">
+  <value>{{func-deviceinfo-key}}</value>
+</set-query-parameter>
+
 	</inbound>
 	<!-- Control if and how the requests are forwarded to services  -->
 	<backend>
