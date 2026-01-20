@@ -1,0 +1,81 @@
+﻿<!--
+    - Policies are applied in the order they appear.
+    - Position <base/> inside a section to inherit policies from the outer scope.
+    - Comments within policies are not preserved.
+-->
+<!-- Add policies as children to the <inbound>, <outbound>, <backend>, and <on-error> elements -->
+<policies>
+	<!-- Throttle, authorize, validate, cache, or transform the requests -->
+	<inbound>
+		<base />
+		<!-- AUTORISATIE: alleen users in groep A (is hier AAD groep test-lezen of B (is hier AAD groep test-schrijven -->
+		<choose>
+			<when condition="@(&#xA;            !(&#xA;                ((Jwt)context.Variables[&quot;jwt&quot;]).Claims.ContainsKey(&quot;groups&quot;)&#xA;                &amp;&amp;&#xA;                (&#xA;                    Array.IndexOf((string[])((Jwt)context.Variables[&quot;jwt&quot;]).Claims[&quot;groups&quot;], &quot;20d79284-e362-4a16-9c0f-c1758051cefe&quot;) &gt;= 0&#xA;                    ||&#xA;                    Array.IndexOf((string[])((Jwt)context.Variables[&quot;jwt&quot;]).Claims[&quot;groups&quot;], &quot;7bd62e98-bcf6-40c8-97f2-9541013859e0&quot;) &gt;= 0&#xA;                )&#xA;            )&#xA;            )">
+				<return-response>
+					<set-status code="403" reason="Forbidden" />
+					<set-header name="Content-Type" exists-action="override">
+						<value>application/json</value>
+					</set-header>
+					<set-body>{
+                    "error": "forbidden",
+                    "message": "User must be in group 'test-schrijven'."
+                    }</set-body>
+				</return-response>
+			</when>
+		</choose>
+		<!-- 1) Id uit de route: /testdevices/{id} -->
+		<set-variable name="deviceId" value="@(context.Request.MatchedParameters[&quot;id&quot;])" />
+		<!-- 2) Tijd in RFC1123-formaat voor Cosmos headers -->
+		<set-variable name="utcNow" value="@(DateTime.UtcNow.ToString(&quot;R&quot;))" />
+		<!-- 3) RW-key uit Named Values -->
+		<set-variable name="cosmosKey" value="{{cosmos-rw-key}}" />
+		<!-- 4) Cosmos endpoint uit Named Values (voor gebruik in set-url) -->
+		<set-variable name="cosmosEndpoint" value="{{cosmos-endpoint}}" />
+		<!-- 5) Cosmos Authorization header genereren (DELETE docs/{id}) -->
+		<set-variable name="cosmosAuth" value="@{&#xA;        var key = (string)context.Variables[&quot;cosmosKey&quot;];&#xA;        var keyBytes = Convert.FromBase64String(key);&#xA;&#xA;        var verb = &quot;delete&quot;;&#xA;        var resourceType = &quot;docs&quot;;&#xA;        var deviceId = (string)context.Variables[&quot;deviceId&quot;];&#xA;        var resourceLink = &quot;dbs/lbcdata/colls/testmachines/docs/&quot; + deviceId;&#xA;        var date = (string)context.Variables[&quot;utcNow&quot;];&#xA;&#xA;        var hmacSha256 = new System.Security.Cryptography.HMACSHA256&#xA;        {&#xA;            Key = keyBytes&#xA;        };&#xA;&#xA;        string payload = string.Format(&quot;{0}\n{1}\n{2}\n{3}\n\n&quot;,&#xA;            verb.ToLowerInvariant(),&#xA;            resourceType.ToLowerInvariant(),&#xA;            resourceLink,&#xA;            date.ToLowerInvariant());&#xA;&#xA;        byte[] hashPayload = hmacSha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(payload));&#xA;        string signature = Convert.ToBase64String(hashPayload);&#xA;        string auth = string.Format(&quot;type=master&amp;ver=1.0&amp;sig={0}&quot;, signature);&#xA;&#xA;        return System.Net.WebUtility.UrlEncode(auth);&#xA;    }" />
+		<!-- 6) Request naar Cosmos DB: document delete -->
+		<send-request mode="new" response-variable-name="cosmosResponse" timeout="10" ignore-error="false">
+			<!-- docs/{id} -->
+			<set-url>@(((string)context.Variables["cosmosEndpoint"]) + "/dbs/lbcdata/colls/testmachines/docs/" + (string)context.Variables["deviceId"])</set-url>
+			<set-method>DELETE</set-method>
+			<!-- Authorization header -->
+			<set-header name="Authorization" exists-action="override">
+				<value>@((string)context.Variables["cosmosAuth"])</value>
+			</set-header>
+			<!-- Standaard headers -->
+			<set-header name="x-ms-date" exists-action="override">
+				<value>@((string)context.Variables["utcNow"])</value>
+			</set-header>
+			<set-header name="x-ms-version" exists-action="override">
+				<value>2018-12-31</value>
+			</set-header>
+			<!-- partition key = id (als JSON array-string: ["TM-051"]) -->
+			<set-header name="x-ms-documentdb-partitionkey" exists-action="override">
+				<value>@{
+                var id = (string)context.Variables["deviceId"];
+                return "[\"" + id + "\"]";
+            }</value>
+			</set-header>
+		</send-request>
+		<!-- 7) Response van Cosmos terug naar client -->
+		<return-response>
+			<set-status code="200" reason="OK" />
+			<set-header name="Content-Type" exists-action="override">
+				<value>application/json</value>
+			</set-header>
+			<set-body>@(((IResponse)context.Variables["cosmosResponse"]).Body.As&lt;string&gt;(preserveContent: true))</set-body>
+		</return-response>
+	</inbound>
+	<!-- Control if and how the requests are forwarded to services  -->
+	<backend>
+		<base />
+	</backend>
+	<!-- Customize the responses -->
+	<outbound>
+		<base />
+	</outbound>
+	<!-- Handle exceptions and customize error responses  -->
+	<on-error>
+		<base />
+	</on-error>
+</policies>

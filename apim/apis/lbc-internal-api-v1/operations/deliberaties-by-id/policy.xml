@@ -1,0 +1,87 @@
+﻿<!--
+    - Policies are applied in the order they appear.
+    - Position <base/> inside a section to inherit policies from the outer scope.
+    - Comments within policies are not preserved.
+-->
+<!-- Add policies as children to the <inbound>, <outbound>, <backend>, and <on-error> elements -->
+<policies>
+	<!-- Throttle, authorize, validate, cache, or transform the requests -->
+	<inbound>
+		<base />
+		<!-- AUTORISATIE: alleen users in groep A (is hier AAD groep test-lezen of B (is hier AAD groep test-schrijven -->
+		<choose>
+			<when condition="@(&#xA;            !(&#xA;                ((Jwt)context.Variables[&quot;jwt&quot;]).Claims.ContainsKey(&quot;groups&quot;)&#xA;                &amp;&amp;&#xA;                (&#xA;                    Array.IndexOf((string[])((Jwt)context.Variables[&quot;jwt&quot;]).Claims[&quot;groups&quot;], &quot;89e7e6de-8a11-4901-a91f-4a208e55131f&quot;) &gt;= 0&#xA;                    &#xA;                )&#xA;            )&#xA;            )">
+				<return-response>
+					<set-status code="403" reason="Forbidden" />
+					<set-header name="Content-Type" exists-action="override">
+						<value>application/json</value>
+					</set-header>
+					<set-body>{
+                    "error": "forbidden",
+                    "message": "User must be in group 'GRP-ROL-deliberaties'."
+                    }</set-body>
+				</return-response>
+			</when>
+		</choose>
+		<!-- 0. Validatie van verplichte parameters (uit de query) -->
+		<choose>
+			<when condition="@{&#xA;        var begindatum = context.Request.Url.Query.GetValueOrDefault(&quot;begindatum&quot;);&#xA;        var einddatum  = context.Request.Url.Query.GetValueOrDefault(&quot;einddatum&quot;);&#xA;        var werkdatum  = context.Request.Url.Query.GetValueOrDefault(&quot;werkdatum&quot;);&#xA;&#xA;        return string.IsNullOrEmpty(begindatum)&#xA;            || string.IsNullOrEmpty(einddatum)&#xA;            || string.IsNullOrEmpty(werkdatum);&#xA;    }">
+				<return-response>
+					<set-status code="400" reason="Bad Request" />
+					<set-header name="Content-Type" exists-action="override">
+						<value>application/json; charset=utf-8</value>
+					</set-header>
+					<set-body>{
+            "message": "Verplichte queryparameters ontbreken. Vereist: begindatum, einddatum, werkdatum.",
+            "requiredParameters": [ "begindatum", "einddatum", "werkdatum" ]
+          }</set-body>
+				</return-response>
+			</when>
+		</choose>
+		<!-- 1. Cursuscode uit route halen (id = cursuscode = Regio in WISA) -->
+		<set-variable name="regio" value="@(context.Request.MatchedParameters[&quot;id&quot;])" />
+		<!-- 2. Backend-basis instellen -->
+		<set-backend-service base-url="https://lbc.schoolware.be" />
+		<!-- 3. Alleen het pad herschrijven naar de WISA-endpoint -->
+		<rewrite-uri template="/webwisad/bin/server.fcgi/QUERY/DA_DEL_ST" />
+		<!-- 4. Queryparameters doorgeven zoals WISA ze verwacht -->
+		<set-query-parameter name="Begindatum" exists-action="override">
+			<value>@(context.Request.Url.Query.GetValueOrDefault("begindatum"))</value>
+		</set-query-parameter>
+		<set-query-parameter name="Einddatum" exists-action="override">
+			<value>@(context.Request.Url.Query.GetValueOrDefault("einddatum"))</value>
+		</set-query-parameter>
+		<set-query-parameter name="werkdatum" exists-action="override">
+			<value>@(context.Request.Url.Query.GetValueOrDefault("werkdatum"))</value>
+		</set-query-parameter>
+		<!-- id/cursuscode als Regio doorgeven -->
+		<set-query-parameter name="Regio" exists-action="override">
+			<value>@((string)context.Variables["regio"])</value>
+		</set-query-parameter>
+		<!-- Vaste parameters -->
+		<set-query-parameter name="instellingsnummer" exists-action="override">
+			<value>28431</value>
+		</set-query-parameter>
+		<set-query-parameter name="format" exists-action="override">
+			<value>csv</value>
+		</set-query-parameter>
+		<!-- 5. Basic authentication naar WISA (username/password als Named Values in APIM) -->
+		<authentication-basic username="{{wisa-username}}" password="{{wisa-password}}" />
+		<!-- 6. We verwachten CSV van de backend -->
+		<set-header name="Accept" exists-action="override">
+			<value>text/csv</value>
+		</set-header>
+	</inbound>
+	<!-- Control if and how the requests are forwarded to services  -->
+	<backend>
+		<base />
+	</backend>
+	<!-- Customize the responses -->
+	<outbound>
+		<base />
+	</outbound>
+	<!-- Handle exceptions and customize error responses  -->
+	<on-error>
+		<base />
+	</on-error>
+</policies>

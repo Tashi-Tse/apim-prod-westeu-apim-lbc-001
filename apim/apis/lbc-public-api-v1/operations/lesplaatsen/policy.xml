@@ -1,0 +1,38 @@
+﻿<!--
+    - Policies are applied in the order they appear.
+    - Position <base/> inside a section to inherit policies from the outer scope.
+    - Comments within policies are not preserved.
+-->
+<!-- Add policies as children to the <inbound>, <outbound>, <backend>, and <on-error> elements -->
+<policies>
+	<!-- Throttle, authorize, validate, cache, or transform the requests -->
+	<inbound>
+		<base />
+		<!-- Vlaamse onderwijs API key -->
+		<set-query-parameter name="apikey" exists-action="override">
+			<value>{{onderwijs-api-key}}</value>
+		</set-query-parameter>
+		<!-- Filter op onze instelling -->
+		<set-query-parameter name="filter_instelling_nummer" exists-action="override">
+			<value>{{onderwijs-instelling-nummer}}</value>
+		</set-query-parameter>
+		<!-- We willen ALLE records: size=99999 -->
+		<set-query-parameter name="size" exists-action="override">
+			<value>99999</value>
+		</set-query-parameter>
+		<!-- Mooie frontend  Vlaamse backend -->
+		<rewrite-uri template="/instellingsgegevens/instellingslocatie/v1/instellingslocatie" />
+	</inbound>
+	<!-- Control if and how the requests are forwarded to services  -->
+	<backend>
+		<base />
+	</backend>
+	<!-- Customize the responses -->
+	<outbound>
+		<base />
+	</outbound>
+	<!-- Handle exceptions and customize error responses  -->
+	<on-error>
+		<base />
+	</on-error>
+</policies>

@@ -1,0 +1,115 @@
+﻿<!--
+    - Policies are applied in the order they appear.
+    - Position <base/> inside a section to inherit policies from the outer scope.
+    - Comments within policies are not preserved.
+-->
+<!-- Add policies as children to the <inbound>, <outbound>, <backend>, and <on-error> elements -->
+<policies>
+	<!-- Throttle, authorize, validate, cache, or transform the requests -->
+	<inbound>
+		<base />
+		<!-- AUTORISATIE: alleen users in groep A (is hier AAD groep test-lezen of B (is hier AAD groep test-schrijven -->
+		<choose>
+			<when condition="@(&#xA;            !(&#xA;                ((Jwt)context.Variables[&quot;jwt&quot;]).Claims.ContainsKey(&quot;groups&quot;)&#xA;                &amp;&amp;&#xA;                (&#xA;                    Array.IndexOf((string[])((Jwt)context.Variables[&quot;jwt&quot;]).Claims[&quot;groups&quot;], &quot;20d79284-e362-4a16-9c0f-c1758051cefe&quot;) &gt;= 0&#xA;                    ||&#xA;                    Array.IndexOf((string[])((Jwt)context.Variables[&quot;jwt&quot;]).Claims[&quot;groups&quot;], &quot;7bd62e98-bcf6-40c8-97f2-9541013859e0&quot;) &gt;= 0&#xA;                )&#xA;            )&#xA;            )">
+				<return-response>
+					<set-status code="403" reason="Forbidden" />
+					<set-header name="Content-Type" exists-action="override">
+						<value>application/json</value>
+					</set-header>
+					<set-body>{
+                    "error": "forbidden",
+                    "message": "User is not in any of the allowed groups for this operation."
+                    }</set-body>
+				</return-response>
+			</when>
+		</choose>
+		<!-- Id uit route /testdevices/{id} -->
+		<set-variable name="deviceId" value="@(context.Request.MatchedParameters[&quot;id&quot;])" />
+		<!-- Datum in RFC 7231 formaat voor Cosmos -->
+		<set-variable name="requestDateString" value="@(DateTime.UtcNow.ToString(&quot;r&quot;))" />
+		<!-- Query naar Cosmos DB (SELECT * FROM c WHERE c.id = @id) -->
+		<send-request mode="new" response-variable-name="cosmosResponse" timeout="10" ignore-error="false">
+			<set-url>{{cosmos-endpoint}}/dbs/lbcdata/colls/testmachines/docs</set-url>
+			<set-method>POST</set-method>
+			<!-- Authorization header met master key signatuur -->
+			<set-header name="Authorization" exists-action="override">
+				<value>@{
+                var verb = "post";
+                var resourceType = "docs";
+                var resourceLink = "dbs/lbcdata/colls/testmachines";
+                var key = "{{cosmos-ro-key}}";      // Named value
+                var keyType = "master";
+                var tokenVersion = "1.0";
+                var date = context.Variables.GetValueOrDefault&lt;string&gt;("requestDateString");
+
+                var hmacSha256 = new System.Security.Cryptography.HMACSHA256
+                {
+                    Key = Convert.FromBase64String(key)
+                };
+
+                verb = verb ?? "";
+                resourceType = resourceType ?? "";
+                resourceLink = resourceLink ?? "";
+
+                string payload = string.Format("{0}\n{1}\n{2}\n{3}\n\n",
+                    verb.ToLowerInvariant(),
+                    resourceType.ToLowerInvariant(),
+                    resourceLink,
+                    date.ToLowerInvariant()
+                );
+
+                byte[] hashPayload = hmacSha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(payload));
+                string signature = Convert.ToBase64String(hashPayload);
+
+                return System.Uri.EscapeDataString(string.Format("type={0}&amp;ver={1}&amp;sig={2}",
+                    keyType,
+                    tokenVersion,
+                    signature));
+            }</value>
+			</set-header>
+			<!-- Cosmos query headers -->
+			<set-header name="Content-Type" exists-action="override">
+				<value>application/query+json</value>
+			</set-header>
+			<set-header name="x-ms-documentdb-isquery" exists-action="override">
+				<value>true</value>
+			</set-header>
+			<set-header name="x-ms-query-enable-crosspartition" exists-action="override">
+				<value>true</value>
+			</set-header>
+			<set-header name="x-ms-date" exists-action="override">
+				<value>@(context.Variables.GetValueOrDefault&lt;string&gt;("requestDateString"))</value>
+			</set-header>
+			<set-header name="x-ms-version" exists-action="override">
+				<value>2018-12-31</value>
+			</set-header>
+			<!-- Querybody: WHERE c.id = @id -->
+			<set-body>
+            @("{\"query\": \"SELECT * FROM c WHERE c.id = @id\", " +
+              "\"parameters\": [{ \"name\": \"@id\", \"value\": \"" +
+              context.Variables.GetValueOrDefault&lt;string&gt;("deviceId") +
+              "\"}]}")
+        </set-body>
+		</send-request>
+		<!-- Cosmos-response rechtstreeks doorgeven -->
+		<return-response>
+			<set-status code="200" reason="OK" />
+			<set-header name="Content-Type" exists-action="override">
+				<value>application/json</value>
+			</set-header>
+			<set-body>@(((IResponse)context.Variables["cosmosResponse"]).Body.As&lt;string&gt;(preserveContent: true))</set-body>
+		</return-response>
+	</inbound>
+	<!-- Control if and how the requests are forwarded to services  -->
+	<backend>
+		<base />
+	</backend>
+	<!-- Customize the responses -->
+	<outbound>
+		<base />
+	</outbound>
+	<!-- Handle exceptions and customize error responses  -->
+	<on-error>
+		<base />
+	</on-error>
+</policies>
